@@ -1,0 +1,108 @@
+name: Build and push images
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - .github/FUNDING.yml
+      - README.md  
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - .github/FUNDING.yml
+      - README.md
+  workflow_dispatch:
+    inputs:
+      base-ref:
+        description: "Fully qualified image ref, e.g. `php:8.5.12-fpm`"
+        type: string
+      imagick-version:
+        description: "Image magick version, e.g. `3.8.1`"
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ contains(fromJSON('["pull_request", "workflow_dispatch"]'), github.event_name) }}
+
+env:
+  BASE_REF: ${{ inputs.base-ref || 'php:8.5.12-fpm' }}
+  IMAGICK_VERSION: ${{ inputs.imagick-version || '3.8.1' }}
+
+jobs:
+  build-push:
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - name: Login to GitHub Container Registry
+        if: ${{ github.event_name == 'push' }}
+        uses: docker/login-action@c144859092e8e353f3e118b0b329679a62351c3e  # v4.0.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ github.token }}
+
+      - name: Login to Forgejo Container Registry
+        if: ${{ github.event_name == 'push' }}
+        uses: docker/login-action@c144859092e8e353f3e118b0b329679a62351c3e  # v4.0.0
+        with:
+          registry: forgejo.treyturner.info
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.FORGEJO_REGISTRY_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd  # v4.0.0
+
+      - name: Build candidate
+        uses: docker/build-push-action@eb6512707bea5740b2608f2a43ece7bc543cb75b  # v7.0.0
+        with:
+          build-args: |
+            BASE_REF=${{ env.BASE_REF }}
+            IMAGICK_VERSION=${{ env.IMAGICK_VERSION }}
+          pull: true
+          tags: |
+            ghcr.io/treyturner/${{ env.BASE_REF }}
+            forgejo.treyturner.info/treyturner/${{ env.BASE_REF }}
+          load: true
+          push: false
+
+      - name: Test candidate
+        shell: bash -euo pipefail {0}
+        env:
+          IMAGE_REF: ghcr.io/treyturner/${{ env.BASE_REF }}
+
+        run: |
+          docker run --rm "$IMAGE_REF" php -r '
+            $required = [
+              "bcmath", "bz2", "calendar", "exif", "gd", "gettext", "gmp",
+              "intl", "ldap", "mysqli", "pcntl", "pdo_mysql", "soap",
+              "sockets", "tidy", "xsl", "zip", "imagick",
+            ];
+            $missing = array_filter($required, fn($extension) => !extension_loaded($extension));
+            if ($missing) {
+              fwrite(STDERR, "Missing extensions: " . implode(", ", $missing) . PHP_EOL);
+              exit(1);
+            }
+            echo "All required extensions loaded." . PHP_EOL;
+          '
+          docker run --rm "$IMAGE_REF" php-fpm -t
+
+      - name: Push
+        if: ${{ github.event_name == 'push' }}
+        shell: bash -euo pipefail {0}
+        env:
+          REFS: |
+            ghcr.io/treyturner/${{ env.BASE_REF }}
+            forgejo.treyturner.info/treyturner/${{ env.BASE_REF }}
+        run: |
+          echo "Pushing images..."
+          while IFS= read -r ref; do
+            if [ -n "$ref" ]; then
+              echo "Pushing $ref"
+              docker push "$ref"
+            fi
+          done <<< "$REFS"
