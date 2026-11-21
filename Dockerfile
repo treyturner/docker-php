@@ -1,4 +1,4 @@
-ARG BASE_REF=php:8.5.12-fpm
+ARG BASE_REF=php:8.5.13-fpm
 
 FROM ${BASE_REF}
 
