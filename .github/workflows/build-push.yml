@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths-ignore:
       - .github/FUNDING.yml
-      - README.md  
+      - README.md
   pull_request:
     branches: [main]
     paths-ignore:
@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       base-ref:
-        description: "Fully qualified image ref, e.g. `php:8.5.12-fpm`"
+        description: "Fully qualified image ref, e.g. `php:8.5.13-fpm`"
         type: string
       imagick-version:
         description: "Image magick version, e.g. `3.8.1`"
@@ -25,7 +25,7 @@ concurrency:
   cancel-in-progress: ${{ contains(fromJSON('["pull_request", "workflow_dispatch"]'), github.event_name) }}
 
 env:
-  BASE_REF: ${{ inputs.base-ref || 'php:8.5.12-fpm' }}
+  BASE_REF: ${{ inputs.base-ref || 'php:8.5.13-fpm' }}
   IMAGICK_VERSION: ${{ inputs.imagick-version || '3.8.1' }}
 
 jobs:

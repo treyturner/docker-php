@@ -1,14 +1,14 @@
 # PHP-FPM
 
-PHP 8.5.12 FPM, based on the official `php:8.5.12-fpm` image, with additional PHP extensions.
+PHP 8.5.13 FPM, based on the official `php:8.5.13-fpm` image, with additional PHP extensions.
 
 ## Published tags
 
 Both registries receive the same image:
 
 ```text
-ghcr.io/treyturner/php:8.5.12-fpm
-forgejo.treyturner.info/treyturner/php:8.5.12-fpm
+ghcr.io/treyturner/php:8.5.13-fpm
+forgejo.treyturner.info/treyturner/php:8.5.13-fpm
 ```
 
 ## Inventory
